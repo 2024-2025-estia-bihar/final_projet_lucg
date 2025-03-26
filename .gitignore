@@ -1,0 +1,9 @@
+# Ignorer tous les fichiers dans le dossier data
+/data/*
+
+# Ignorer le dossier de l'environnement virtuel
+/env/
+
+/augmented_images/
+
+output/
