@@ -1,0 +1,17 @@
+version: '3'
+
+services:
+  api:
+    build: 
+      context: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - time_series_data:/app/data
+      - model_registry:/app/model/registry
+    environment:
+      - DATABASE_URL=sqlite:///./sql_app.db
+
+volumes:
+  time_series_data:
+  model_registry:

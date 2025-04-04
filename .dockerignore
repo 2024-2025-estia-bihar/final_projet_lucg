@@ -1,0 +1,60 @@
+# Environnement virtuel
+env/
+venv/
+ENV/
+.venv/
+
+# Cache Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+
+# Logs
+logs/
+*.log
+
+# Base de données
+*.db
+*.sqlite3
+*.sqlite
+data/image_classification/
+
+# Fichiers de développement
+.git/
+.github/
+.gitignore
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Fichiers temporaires
+.DS_Store
+Thumbs.db
+.tmp/
+.temp/
+
+
+# Données brutes et intermédiaires
+*.csv
+*.json
+glove.6B.300d.txt
+*.jpg
+
+# Model
+*.pkl
+
+# Fichiers de configuration pour le développement local
+.env.local
+.env.development
+.env*.local
+
+notebooks/
+output/
+model/registy/*
