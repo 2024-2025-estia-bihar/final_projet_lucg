@@ -1,5 +1,6 @@
 import os
 import sys
+import numpy as np
 import pandas as pd
 from pathlib import Path
 from datetime import datetime
@@ -7,6 +8,7 @@ from pydantic import BaseModel
 from http.client import HTTPException
 from sqlalchemy.orm import sessionmaker
 from fastapi import FastAPI, Query, Body
+from sklearn.metrics import mean_squared_error
 from fastapi.middleware.cors import CORSMiddleware
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -202,6 +204,96 @@ async def get_models():
     
     except Exception as e:
         return {"error": f"Erreur lors de la récupération des modèles: {str(e)}"}
+    
+    finally:
+        session.close()
+        
+
+
+class PredictionDateRange(BaseModel):
+    start_date: str
+    end_date: str
+    model_id: int = None  # Optionnel, permet de filtrer par modèle spécifique
+
+@app.post("/predictions")
+async def get_predictions(date_range: PredictionDateRange = Body(...)):
+    try:
+        start_date = pd.to_datetime(date_range.start_date)
+        end_date = pd.to_datetime(date_range.end_date)
+    except ValueError:
+        return {"error": "Format de date invalide. Utilisez YYYY-MM-DD."}
+    
+    engine = get_engine()
+    Session = sessionmaker(bind=engine)
+    session = Session()
+    
+    try:
+        query = session.query(Prediction).filter(
+            Prediction.timestamp >= start_date.strftime("%Y-%m-%d"),
+            Prediction.timestamp <= end_date.strftime("%Y-%m-%d")
+        )
+        
+        if date_range.model_id:
+            query = query.filter(Prediction.model_id == date_range.model_id)
+            
+        predictions = query.all()
+        
+        if not predictions:
+            return {
+                "message": "Aucune prédiction n'est disponible pour cette période",
+            }
+        
+        real_values = []
+        pred_values = []
+        predictions_list = []
+        
+        for pred in predictions:
+            real = float(pred.real) if pred.real else None
+            prediction = float(pred.prediction) if pred.prediction else None
+            
+            if real is not None and prediction is not None:
+                real_values.append(real)
+                pred_values.append(prediction)
+            
+            predictions_list.append({
+                "id": pred.id,
+                "model_id": pred.model_id,
+                "timestamp": pred.timestamp,
+                "valeur_reelle": real,
+                "valeur_prevue": prediction,
+                "relative_humidity": float(pred.relative_humidity) if pred.relative_humidity else None,
+                "precipitation": float(pred.precipitation) if pred.precipitation else None, 
+                "surface_pressure": float(pred.surface_pressure) if pred.surface_pressure else None,
+                "latitude": float(pred.latitude) if pred.latitude else None,
+                "longitude": float(pred.longitude) if pred.longitude else None
+            })
+        
+        rmse = None
+        if real_values and pred_values:
+            rmse = float(np.sqrt(mean_squared_error(real_values, pred_values)))
+        
+        result = {}
+        
+        if rmse is not None:
+            result["rmse"] = rmse
+            
+        result["predictions_count"] = len(predictions_list)
+        result["predictions"] = predictions_list
+        
+        if date_range.model_id and predictions:
+            model = session.query(Model).filter(Model.id == date_range.model_id).first()
+            if model:
+                result["model_info"] = {
+                    "id": model.id,
+                    "name": model.name,
+                    "version": model.version,
+                    "created_at": model.created_at
+                }
+        
+        return result
+        
+    except Exception as e:
+        return {"error": f"Erreur lors de la récupération des prédictions: {str(e)}"}
     
     finally:
         session.close()
