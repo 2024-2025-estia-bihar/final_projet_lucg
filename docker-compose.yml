@@ -2,8 +2,7 @@ version: '3'
 
 services:
   api:
-    build: 
-      context: .
+    image: ghcr.io/2024-2025-estia-bihar/final_projet_lucg:latest
     ports:
       - "8000:8000"
     volumes:

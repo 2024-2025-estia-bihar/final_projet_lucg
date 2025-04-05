@@ -99,9 +99,7 @@ class TestAPI(unittest.TestCase):
         mock_session.query.return_value.filter.return_value.first.return_value = (
             mock_model
         )
-        mock_session.query.return_value.filter.return_value.all.return_value = (
-            []
-        )
+        mock_session.query.return_value.filter.return_value.all.return_value = []
         mock_session_maker = MagicMock(return_value=mock_session)
         mock_get_engine.return_value = MagicMock()
 
