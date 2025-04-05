@@ -2,6 +2,13 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
+# Arguments pour capturer l'ID du commit
+ARG GIT_COMMIT_HASH="unknown"
+
+# Stocker l'ID du commit comme variable d'environnement et dans un fichier
+ENV GIT_COMMIT_HASH=${GIT_COMMIT_HASH}
+RUN echo ${GIT_COMMIT_HASH} > /app/git_commit_id.txt
+
 # Installer les dépendances système nécessaires
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \

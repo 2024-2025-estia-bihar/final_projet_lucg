@@ -40,7 +40,6 @@ app.add_middleware(
 )
 
 
-
 @app.get("/")
 async def root():
     return {"message": "Bienvenue sur l'API de prévision de séries temporelles"}
@@ -49,6 +48,7 @@ async def root():
 class DateRange(BaseModel):
     start_date: str
     end_date: str
+
 
 @app.post("/fetch_data")
 async def api_fetch_data(date_range: DateRange = Body(...)):
@@ -75,6 +75,7 @@ class TrainingParams(BaseModel):
     version: str
     start_date: str = None
     end_date: str = None
+
 
 @app.post("/train_model")
 async def train_model(params: TrainingParams = Body(...)):
@@ -138,6 +139,7 @@ class PredictionRequest(BaseModel):
     start_date: str
     end_date: str
 
+
 @app.post("/predict")
 async def prediction(request: PredictionRequest = Body(...)):
     model_id = request.model_id
@@ -184,10 +186,10 @@ async def get_models():
     engine = get_engine()
     Session = sessionmaker(bind=engine)
     session = Session()
-    
+
     try:
         models = session.query(Model).all()
-        
+
         # Conversion des modèles en dictionnaires pour la réponse JSON
         models_list = [
             {
@@ -195,25 +197,25 @@ async def get_models():
                 "name": model.name,
                 "version": model.version,
                 "created_at": model.created_at,
-                "path": model.path
+                "path": model.path,
             }
             for model in models
         ]
-        
+
         return models_list
-    
+
     except Exception as e:
         return {"error": f"Erreur lors de la récupération des modèles: {str(e)}"}
-    
+
     finally:
         session.close()
-        
 
 
 class PredictionDateRange(BaseModel):
     start_date: str
     end_date: str
     model_id: int = None  # Optionnel, permet de filtrer par modèle spécifique
+
 
 @app.post("/predictions")
 async def get_predictions(date_range: PredictionDateRange = Body(...)):
@@ -222,64 +224,74 @@ async def get_predictions(date_range: PredictionDateRange = Body(...)):
         end_date = pd.to_datetime(date_range.end_date)
     except ValueError:
         return {"error": "Format de date invalide. Utilisez YYYY-MM-DD."}
-    
+
     engine = get_engine()
     Session = sessionmaker(bind=engine)
     session = Session()
-    
+
     try:
         query = session.query(Prediction).filter(
             Prediction.timestamp >= start_date.strftime("%Y-%m-%d"),
-            Prediction.timestamp <= end_date.strftime("%Y-%m-%d")
+            Prediction.timestamp <= end_date.strftime("%Y-%m-%d"),
         )
-        
+
         if date_range.model_id:
             query = query.filter(Prediction.model_id == date_range.model_id)
-            
+
         predictions = query.all()
-        
+
         if not predictions:
             return {
                 "message": "Aucune prédiction n'est disponible pour cette période",
             }
-        
+
         real_values = []
         pred_values = []
         predictions_list = []
-        
+
         for pred in predictions:
             real = float(pred.real) if pred.real else None
             prediction = float(pred.prediction) if pred.prediction else None
-            
+
             if real is not None and prediction is not None:
                 real_values.append(real)
                 pred_values.append(prediction)
-            
-            predictions_list.append({
-                "id": pred.id,
-                "model_id": pred.model_id,
-                "timestamp": pred.timestamp,
-                "valeur_reelle": real,
-                "valeur_prevue": prediction,
-                "relative_humidity": float(pred.relative_humidity) if pred.relative_humidity else None,
-                "precipitation": float(pred.precipitation) if pred.precipitation else None, 
-                "surface_pressure": float(pred.surface_pressure) if pred.surface_pressure else None,
-                "latitude": float(pred.latitude) if pred.latitude else None,
-                "longitude": float(pred.longitude) if pred.longitude else None
-            })
-        
+
+            predictions_list.append(
+                {
+                    "id": pred.id,
+                    "model_id": pred.model_id,
+                    "timestamp": pred.timestamp,
+                    "valeur_reelle": real,
+                    "valeur_prevue": prediction,
+                    "relative_humidity": (
+                        float(pred.relative_humidity)
+                        if pred.relative_humidity
+                        else None
+                    ),
+                    "precipitation": (
+                        float(pred.precipitation) if pred.precipitation else None
+                    ),
+                    "surface_pressure": (
+                        float(pred.surface_pressure) if pred.surface_pressure else None
+                    ),
+                    "latitude": float(pred.latitude) if pred.latitude else None,
+                    "longitude": float(pred.longitude) if pred.longitude else None,
+                }
+            )
+
         rmse = None
         if real_values and pred_values:
             rmse = float(np.sqrt(mean_squared_error(real_values, pred_values)))
-        
+
         result = {}
-        
+
         if rmse is not None:
             result["rmse"] = rmse
-            
+
         result["predictions_count"] = len(predictions_list)
         result["predictions"] = predictions_list
-        
+
         if date_range.model_id and predictions:
             model = session.query(Model).filter(Model.id == date_range.model_id).first()
             if model:
@@ -287,13 +299,49 @@ async def get_predictions(date_range: PredictionDateRange = Body(...)):
                     "id": model.id,
                     "name": model.name,
                     "version": model.version,
-                    "created_at": model.created_at
+                    "created_at": model.created_at,
                 }
-        
+
         return result
-        
+
     except Exception as e:
         return {"error": f"Erreur lors de la récupération des prédictions: {str(e)}"}
-    
+
     finally:
         session.close()
+
+
+import os
+import subprocess
+
+
+@app.get("/version")
+async def get_version():
+    """
+    Retourne la version de l'API.
+
+    En environnement local : "0.0.0"
+    En environnement Docker : l'ID du dernier commit Git
+
+    Returns:
+        dict: Informations de version
+    """
+    # Vérifier si nous sommes dans un environnement Docker
+    in_docker = os.path.exists("/.dockerenv")
+
+    if in_docker:
+        try:
+            # En environnement Docker, essayer de récupérer l'ID du commit
+            commit_id = os.environ.get("GIT_COMMIT_HASH", "unknown")
+
+            # Si la variable d'environnement n'est pas définie, essayer de lire depuis un fichier
+            if commit_id == "unknown" and os.path.exists("/app/git_commit_id.txt"):
+                with open("/app/git_commit_id.txt", "r") as f:
+                    commit_id = f.read().strip()
+
+            return {"version": commit_id, "environment": "docker"}
+        except Exception as e:
+            return {"version": "unknown", "environment": "docker", "error": str(e)}
+    else:
+        # En environnement local
+        return {"version": "0.0.0", "environment": "local"}
