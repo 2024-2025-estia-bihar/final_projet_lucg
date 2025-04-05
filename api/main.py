@@ -177,3 +177,31 @@ async def prediction(request: PredictionRequest = Body(...)):
     return results.to_dict(orient="records")
 
 
+@app.get("/models", response_model=list)
+async def get_models():
+    engine = get_engine()
+    Session = sessionmaker(bind=engine)
+    session = Session()
+    
+    try:
+        models = session.query(Model).all()
+        
+        # Conversion des modèles en dictionnaires pour la réponse JSON
+        models_list = [
+            {
+                "id": model.id,
+                "name": model.name,
+                "version": model.version,
+                "created_at": model.created_at,
+                "path": model.path
+            }
+            for model in models
+        ]
+        
+        return models_list
+    
+    except Exception as e:
+        return {"error": f"Erreur lors de la récupération des modèles: {str(e)}"}
+    
+    finally:
+        session.close()
