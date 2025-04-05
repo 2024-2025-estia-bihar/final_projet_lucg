@@ -25,7 +25,6 @@ class TestDataIngestion(unittest.TestCase):
 
     @patch("data.data_ingestion.requests.get")
     def test_fetch_weather_data_success(self, mock_get):
-        # Configurer le mock pour simuler une réponse réussie
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
@@ -45,10 +44,8 @@ class TestDataIngestion(unittest.TestCase):
         }
         mock_get.return_value = mock_response
 
-        # Appeler la fonction avec des paramètres de test
         result = fetch_weather_data("2023-01-01", "2023-01-02")
 
-        # Assertions
         self.assertIsInstance(result, pd.DataFrame)
         self.assertEqual(len(result), 2)
         self.assertIn("temperature_2m", result.columns)
@@ -79,7 +76,6 @@ class TestDataIngestion(unittest.TestCase):
             }
         )
 
-        # Configurer le mock pour simuler une session SQLAlchemy
         mock_session = MagicMock()
         mock_session_maker = MagicMock(return_value=mock_session)
         mock_get_engine.return_value = MagicMock()
@@ -87,10 +83,8 @@ class TestDataIngestion(unittest.TestCase):
         with patch("data.data_ingestion.sessionmaker", return_value=mock_session_maker):
             result = save_weather_data_to_db(df)
 
-        # Vérifier que la fonction renvoie un message de succès
         self.assertIn("enregistrements ajoutés", result)
 
-        # Vérifier que add et commit ont été appelés sur la session
         self.assertTrue(mock_session.add.called)
         self.assertTrue(mock_session.commit.called)
 

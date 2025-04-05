@@ -1,21 +1,20 @@
 import os
 import sys
+import pandas as pd
 from pathlib import Path
 from datetime import datetime
+from pydantic import BaseModel
 from http.client import HTTPException
-import pandas as pd
+from sqlalchemy.orm import sessionmaker
+from fastapi import FastAPI, Query, Body
+from fastapi.middleware.cors import CORSMiddleware
 
-# Ajouter le répertoire parent au chemin Python (une seule fois suffit)
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# Maintenant que le chemin est correct, importer les modules de votre projet
 from data.data_ingestion import fetch_weather_data, save_weather_data_to_db
 from model.predict_series import predict, training_pipeline
 from data.db_init import engine, get_engine
 from data.db_class import Model, RealTemperature, Prediction
-from sqlalchemy.orm import sessionmaker
-from fastapi import FastAPI, Query, Body
-from fastapi.middleware.cors import CORSMiddleware
 
 
 # Création des tables dans la base de données
@@ -38,19 +37,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Inclusion des routeurs
-from pydantic import BaseModel
-
-
-class DateRange(BaseModel):
-    start_date: str
-    end_date: str
 
 
 @app.get("/")
 async def root():
     return {"message": "Bienvenue sur l'API de prévision de séries temporelles"}
 
+
+class DateRange(BaseModel):
+    start_date: str
+    end_date: str
 
 @app.post("/fetch_data")
 async def api_fetch_data(date_range: DateRange = Body(...)):
@@ -67,7 +63,6 @@ async def api_fetch_data(date_range: DateRange = Body(...)):
             status_code=400, detail="Format de date invalide. Utiliser YYYY-MM-DD"
         )
 
-    # Fonction pour récupérer les données météorologiques et les stocker dans la base de données
     df = fetch_weather_data(start_date, end_date)
     msg = save_weather_data_to_db(df)
 
@@ -79,15 +74,12 @@ class TrainingParams(BaseModel):
     start_date: str = None
     end_date: str = None
 
-
 @app.post("/train_model")
 async def train_model(params: TrainingParams = Body(...)):
-    # Extraire les paramètres du body
     version = params.version
     start_date = params.start_date
     end_date = params.end_date
 
-    # Vérifier le format des dates
     if start_date and end_date:
         try:
             start_date = pd.to_datetime(start_date)
@@ -95,13 +87,11 @@ async def train_model(params: TrainingParams = Body(...)):
         except ValueError:
             return {"error": "Format de date invalide"}
 
-    # Créer une session SQLAlchemy
     engine = get_engine()
     Session = sessionmaker(bind=engine)
     session = Session()
 
     try:
-        # Construire la requête en fonction des dates fournies
         query = session.query(RealTemperature)
         if start_date and end_date:
             query = query.filter(
@@ -127,8 +117,6 @@ async def train_model(params: TrainingParams = Body(...)):
             ]
         )
 
-        # Vérifier la continuité de la serie temporelle
-
     finally:
         session.close()
 
@@ -148,22 +136,18 @@ class PredictionRequest(BaseModel):
     start_date: str
     end_date: str
 
-
 @app.post("/predict")
 async def prediction(request: PredictionRequest = Body(...)):
-    # Extraire les paramètres du body
     model_id = request.model_id
     start_date = request.start_date
     end_date = request.end_date
 
-    # Vérifier le format des dates
     try:
         start_date = pd.to_datetime(start_date)
         end_date = pd.to_datetime(end_date)
     except ValueError:
         return {"error": "Format de date invalide"}
 
-    # Verifier que le modèle existe dans la base de données
     engine = get_engine()
     Session = sessionmaker(bind=engine)
     session = Session()
@@ -173,7 +157,6 @@ async def prediction(request: PredictionRequest = Body(...)):
         session.close()
         return {"error": "Modèle non trouvé"}
 
-    # Recupérer les données météorologiques
     query = session.query(RealTemperature).filter(
         RealTemperature.timestamp >= start_date.strftime("%Y-%m-%d"),
         RealTemperature.timestamp <= end_date.strftime("%Y-%m-%d"),
@@ -192,3 +175,5 @@ async def prediction(request: PredictionRequest = Body(...)):
     results = predict(model.path, data)
 
     return results.to_dict(orient="records")
+
+

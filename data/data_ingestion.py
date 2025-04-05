@@ -72,16 +72,7 @@ def fetch_weather_data(
 
 
 def save_weather_data_to_db(df: pd.DataFrame) -> bool:
-    """
-    Enregistre les données météorologiques dans la base de données
 
-    Args:
-        df: DataFrame pandas contenant les données météorologiques
-        model_id: ID du modèle associé (optionnel)
-
-    Returns:
-        bool: True si l'enregistrement s'est bien passé, False sinon
-    """
     if df.empty:
         print("Aucune donnée à enregistrer")
         return False
@@ -94,10 +85,8 @@ def save_weather_data_to_db(df: pd.DataFrame) -> bool:
         records_added = 0
 
         for _, row in df.iterrows():
-            # Convertir timestamp en format string pour le stockage
             timestamp_str = row["timestamp"].strftime("%Y-%m-%d %H:%M:%S")
 
-            # Créer un nouvel enregistrement
             new_record = RealTemperature(
                 timestamp=timestamp_str,
                 temperature_2m=str(row["temperature_2m"]),
@@ -113,7 +102,6 @@ def save_weather_data_to_db(df: pd.DataFrame) -> bool:
                 session.commit()
                 records_added += 1
             except IntegrityError:
-                # En cas de doublon, on fait un rollback et on continue
                 session.rollback()
                 continue
 

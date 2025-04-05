@@ -4,14 +4,11 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-# Utiliser des chemins absolus pour garantir la cohérence
-BASE_DIR = Path(__file__).parent.parent  # Remonter au répertoire racine du projet
+BASE_DIR = Path(__file__).parent.parent
 DATA_DIR = BASE_DIR / "data"
 
-# S'assurer que le répertoire data existe
 os.makedirs(DATA_DIR, exist_ok=True)
 
-# Utiliser un chemin absolu pour la base de données
 DB_PATH = os.path.join(DATA_DIR, "sql_app.db")
 DATABASE_URL = f"sqlite:///{DB_PATH}"
 
