@@ -75,7 +75,13 @@ L'image Docker est construite et déployée sur un registre Docker (Github packa
    cd final_projet_lucg
    ```
 
-2. Construire et démarrer les conteneurs Docker
+2. Connectez-vous à GitHub Packages :
+    ```bash
+    echo $CR_PAT | docker login ghcr.io -u USERNAME --password-stdin
+    ```
+    Remplacez `CR_PAT` par votre token d'accès personnel GitHub et `USERNAME` par votre nom d'utilisateur GitHub. L'utilisateur doit avoir les droits d'accès au registre de packages.
+
+3. Construire et démarrer les conteneurs Docker
    ```bash
    docker-compose up -d
    ```
