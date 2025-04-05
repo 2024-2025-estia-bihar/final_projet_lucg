@@ -57,4 +57,4 @@ glove.6B.300d.txt
 
 notebooks/
 output/
-model/registy/*
+model/registry/*
